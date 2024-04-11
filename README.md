@@ -13,4 +13,4 @@ Leider lässt sich Zendure - noch - nur über die APP ansteuern, daher habe ich 
 
 Hinweise:
 - script.yaml -> mein Script, das sollte in der automatiesierung beim starten des Homeassistant eingeschlatet werden. Ich habe hier zusätzlich noch eingebaut das, das script nach sonnenuntergang beendet wird und zum sonnenaufgang gestartet
-- hoymiles.yaml -> meine integration in den Homeassistant, entweder alles in die configuration.yaml (copy/paste) oder diese datei ablegen und in der configuration.yaml am Anfang noch einfüfen mqtt: !include hoymiles.yaml
+- hoymiles.yaml -> meine integration in den Homeassistant, entweder alles in die configuration.yaml (copy/paste) oder diese datei ablegen und in der configuration.yaml am Anfang noch einfügen mqtt: !include hoymiles.yaml
