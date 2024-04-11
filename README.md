@@ -2,8 +2,8 @@
 Nulleinspeisung umgesetzt mit Homeassistant (Zendure &amp; Hoymiles) über MQTT
 
 Vorbereitung:
-- Zendure an HA über MQTT angebunden ->
-- Hoymiles an HA über MQTT (Ahoy DTU) angebunden ->
+- Zendure an HA über MQTT angebunden -> https://github.com/z-master42/solarflow/blob/main/README.md
+- Hoymiles an HA über MQTT (Ahoy DTU) angebunden -> https://github.com/lumapu/ahoy/tree/main?tab=readme-ov-file
 - Messstelle zum erfassen der Verbrausdaten (bei mir Discovergy)
 
 Umsetzung:
