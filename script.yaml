@@ -1,0 +1,78 @@
+alias: Nulleinspeisung
+sequence:
+  - repeat:
+      while: []
+      sequence:
+        - variables:
+            altes_limit: >-
+              {{ states('sensor.pv_microconverter_active_power_limit') | int(1)
+              }}
+            grid_sum: >-
+              {{states('sensor.electricity_eichenallee_14_gesamtleistung')
+              |float(1)}}
+            maximum_wr: "{{ 800 | float(1) }}"
+            minimum_wr: "{{ 6 | float(1) }}"
+            minimum_pack: "{{ 10 | int(1) }}"
+            maximum_pack: "{{ 100 | int (1) }}"
+            half_pack: "{{ 50 | int (1) }}"
+            lower_limit_wr: "{{ 16 | float(1) }}"
+            pack_level: "{{ states('sensor.solarflow_batterie_1_soclevel') | int(1) }}"
+            solar_input: "{{ states('sensor.solarflow_solar_input_power') | float(1) }}"
+          alias: Variablen definieren
+        - if:
+            - condition: template
+              value_template: "{{ pack_level == maximum_pack }}"
+              alias: Akkustand = 100 %
+          then:
+            - variables:
+                set_point: "{{100}}"
+            - service: mqtt.publish
+              data:
+                qos: 0
+                retain: false
+                topic: inverter/ctrl/limit/0
+                payload: "{{set_point}}"
+          else:
+            - if:
+                - condition: template
+                  value_template: "{{ pack_level < half_pack }}"
+                  alias: Battery weniger als 50%
+              then:
+                - variables:
+                    set_point: "{{16}}"
+                - service: mqtt.publish
+                  data:
+                    qos: 0
+                    retain: false
+                    topic: inverter/ctrl/limit/0
+                    payload: "{{set_point}}"
+              else:
+                - if:
+                    - condition: template
+                      value_template: "{{solar_input > grid_sum}}"
+                      alias: Mehr Strom als Gebraucht
+                  then:
+                    - variables:
+                        set_point: "{{ ((grid_sum / solar_input) * 100) | round(0)}}"
+                    - service: mqtt.publish
+                      data:
+                        qos: 0
+                        retain: false
+                        topic: inverter/ctrl/limit/0
+                        payload: "{{set_point}}"
+                  else:
+                    - variables:
+                        set_point: "{{((solar_input / maximum_wr) *100) | round(0) }}"
+                    - service: mqtt.publish
+                      data:
+                        qos: 0
+                        retain: false
+                        topic: inverter/ctrl/limit/0
+                        payload: "{{set_point}}"
+        - delay:
+            hours: 0
+            minutes: 15
+            seconds: 0
+            milliseconds: 0
+          alias: Warte 15 mnuten
+mode: single
