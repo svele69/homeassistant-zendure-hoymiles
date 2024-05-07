@@ -1,0 +1,195 @@
+alias: Anpassung Wechselrichter Leistung
+sequence:
+  - repeat:
+      while: []
+      sequence:
+        - if:
+            - condition: numeric_state
+              entity_id: sensor.pv_microconverter_inverter_availaible
+              above: 0
+              alias: Wechselrichter erreichbar
+          alias: "-"
+          then:
+            - variables:
+                current_limit: >-
+                  {{ states('sensor.pv_microconverter_active_power_limit')|
+                  float(1) }}
+                altes_limit: "{{ ( current_limit / 100 ) * 800 | float(1) }}"
+                grid_sum: >-
+                  {{ states('sensor.tasmota_smartmeter_sml_power_curr') |
+                  float(1) }}
+                maximum_wr: "{{ 800 | float(1) }}"
+                minimum_wr: "{{ 50 | float(1) }}"
+                minimum_pack: "{{ 10 | int(1) }}"
+                maximum_pack: "{{ 100 | int (1) }}"
+                lower_limit_wr: "{{ 120 | float(1) }}"
+                pack_level: "{{ states('sensor.solarflow_electric_level') | int(1) }}"
+                solar_input: >-
+                  {{ states('sensor.pv_microconverter_current_power') | float(1)
+                  }}
+              alias: Variablen definieren
+            - if:
+                - condition: template
+                  value_template: "{{ pack_level == maximum_pack }}"
+                  alias: Akkustand = 100 %
+              then:
+                - if:
+                    - condition: template
+                      value_template: "{{ solar_input > maximum_wr }}"
+                      alias: Solarleistung > maximale Wechselrichterleistung
+                  then:
+                    - service: input_number.set_value
+                      data:
+                        value: "{{ maximum_wr }}"
+                      target:
+                        entity_id: input_number.inverter_limit
+                      alias: Setze Limit auf 600 W
+                  else:
+                    - if:
+                        - condition: template
+                          value_template: "{{ altes_limit <= solar_input }}"
+                          alias: Limit <= Solarleistung
+                      then:
+                        - service: input_number.set_value
+                          data:
+                            value: "{{ solar_input }}"
+                          target:
+                            entity_id: input_number.inverter_limit
+                          alias: Setze Limit = Solarleistung
+                      alias: "-"
+                      else:
+                        - variables:
+                            setpoint: "{{ (grid_sum + solar_input - 5.0) | float(1) }}"
+                          alias: Neues Limit = Aktueller Verbrauch + Altes Limit - 5
+                        - service: input_number.set_value
+                          data:
+                            value: "{{ setpoint }}"
+                          target:
+                            entity_id: input_number.inverter_limit
+                          alias: Setze Limit = Verbrauch
+                  alias: "-"
+              alias: "-"
+              else:
+                - if:
+                    - condition: template
+                      value_template: "{{ pack_level >= minimum_pack}}"
+                      alias: Akkustand >= 10 %
+                  then:
+                    - variables:
+                        setpoint: "{{ (grid_sum + solar_input - 5.0) | float(1) }}"
+                      alias: Neues Limit = Aktueller Verbrauch + Altes Limit - 5
+                    - if:
+                        - condition: template
+                          value_template: "{{ setpoint > maximum_wr }}"
+                          alias: Neues Limit > 600 W
+                      then:
+                        - service: input_number.set_value
+                          data:
+                            value: "{{ maximum_wr }}"
+                          target:
+                            entity_id: input_number.inverter_limit
+                          alias: Setze Limit auf 600 W
+                      else:
+                        - if:
+                            - condition: template
+                              value_template: "{{ setpoint < minimum_wr }}"
+                              alias: Neues Limit < 50
+                          then:
+                            - service: input_number.set_value
+                              data:
+                                value: "{{ minimum_wr }}"
+                              target:
+                                entity_id: input_number.inverter_limit
+                              alias: Setze Limit auf 50 W
+                          else:
+                            - if:
+                                - condition: template
+                                  value_template: "{{ setpoint != altes_limit }}"
+                                  alias: Neues Limit != Altes Limit
+                              then:
+                                - service: input_number.set_value
+                                  data:
+                                    value: "{{ setpoint | float(1) }}"
+                                  target:
+                                    entity_id: input_number.inverter_limit
+                                  alias: Setzte neues Limit
+                              alias: "-"
+                          alias: "-"
+                      alias: "-"
+                  else:
+                    - variables:
+                        setpoint: "{{ (grid_sum + solar_input - 5.0) | float(1) }}"
+                      alias: Neues Limit = Aktueller Verbrauch + Altes Limit - 5
+                    - if:
+                        - condition: template
+                          value_template: "{{ setpoint > lower_limit_wr }}"
+                          alias: Neues Limit > 120 W
+                      then:
+                        - service: input_number.set_value
+                          target:
+                            entity_id: input_number.inverter_limit
+                          data:
+                            value: "{{ lower_limit_wr | float(1) }}"
+                          alias: Setze Limit auf 120 W
+                      else:
+                        - if:
+                            - condition: template
+                              value_template: "{{ setpoint < minimum_wr }}"
+                              alias: Neues Limit < 50
+                          then:
+                            - service: input_number.set_value
+                              data:
+                                value: "{{ minimum_wr }}"
+                              target:
+                                entity_id: input_number.inverter_limit
+                              alias: Setze Limit auf 50 W
+                          else:
+                            - if:
+                                - condition: template
+                                  value_template: "{{ setpoint != altes_limit }}"
+                                  alias: Neues Limit != Altes Limit
+                              then:
+                                - service: input_number.set_value
+                                  data:
+                                    value: "{{ setpoint | float(1) }}"
+                                  target:
+                                    entity_id: input_number.inverter_limit
+                                  alias: Setzte neues Limit
+                              alias: "-"
+                          alias: "-"
+                      alias: "-"
+                  alias: "-"
+        - variables:
+            current_limit: >-
+              {{ states('sensor.pv_microconverter_active_power_limit')| float(1)
+              }}
+            altes_limit: "{{ ( current_limit / 100 ) * 800 | float(1) }}"
+            neues_limit: "{{ states('input_number.inverter_limit') | int(0) }}"
+            altes_limit_plus: "{{ altes_limit + 20.0 }}"
+            altes_limit_min: "{{ altes_limit - 20.0 }}"
+        - if:
+            - condition: template
+              value_template: "{{ altes_limit != neues_limit }}"
+          then:
+            - if:
+                - condition: or
+                  conditions:
+                    - condition: template
+                      value_template: "{{ (neues_limit) > altes_limit_plus }}"
+                    - condition: template
+                      value_template: "{{ (neues_limit) < (altes_limit_min ) }}"
+              then:
+                - service: mqtt.publish
+                  data:
+                    qos: 0
+                    retain: false
+                    topic: inverter/ctrl/limit/0
+                    payload: "{{neues_limit}}W"
+              else: null
+        - delay:
+            hours: 0
+            minutes: 0
+            seconds: 100
+            milliseconds: 0
+          alias: Warte 10 s
+mode: single
